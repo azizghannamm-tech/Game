@@ -2,47 +2,336 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Nokia Games Collection</title>
+<title>Nokia 3310 Arcade</title>
 
 <style>
 body{
-    background:#d8e6c3;
-    font-family:Arial;
+    background:#c7d8a7;
+    font-family:Arial,sans-serif;
     text-align:center;
     margin:0;
     padding:20px;
+}
+
+#phone{
+    width:500px;
+    margin:auto;
+    background:#9db37d;
+    padding:20px;
+    border:8px solid #333;
+    border-radius:20px;
+}
+
+h1{
+    margin-top:0;
 }
 
 button{
     padding:10px 20px;
     margin:5px;
     cursor:pointer;
+    font-size:16px;
 }
 
-iframe{
-    width:420px;
-    height:500px;
-    border:none;
+canvas{
+    background:#d9efb3;
+    border:3px solid #333;
+    margin-top:15px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Nokia Games Collection</h1>
+<div id="phone">
 
-<button onclick="loadGame('snake.html')">Snake</button>
-<button onclick="loadGame('pong.html')">Pong</button>
-<button onclick="loadGame('reaction.html')">Reaction</button>
+<h1>Nokia 3310 Arcade</h1>
 
-<br><br>
+<button onclick="startSnake()">Snake</button>
+<button onclick="startPong()">Pong</button>
+<button onclick="startReaction()">Reaction</button>
 
-<iframe id="gameFrame" src="snake.html"></iframe>
+<br>
+
+<canvas id="screen" width="400" height="400"></canvas>
+
+<p id="info"></p>
+
+</div>
 
 <script>
-function loadGame(game){
-document.getElementById("gameFrame").src=game;
+
+const canvas = document.getElementById("screen");
+const ctx = canvas.getContext("2d");
+
+let interval;
+let currentGame="";
+
+document.addEventListener("keydown",handleKeys);
+
+function clearGame(){
+    clearInterval(interval);
+    ctx.clearRect(0,0,400,400);
+    document.getElementById("info").innerHTML="";
 }
+
+/* =====================
+   SNAKE
+===================== */
+
+let snake,food,dx,dy,score;
+
+function startSnake(){
+
+clearGame();
+
+currentGame="snake";
+
+snake=[{x:10,y:10}];
+food=randomFood();
+dx=1;
+dy=0;
+score=0;
+
+document.getElementById("info").innerHTML=
+"Arrow Keys | Score: 0";
+
+interval=setInterval(drawSnake,120);
+}
+
+function randomFood(){
+return{
+x:Math.floor(Math.random()*20),
+y:Math.floor(Math.random()*20)
+};
+}
+
+function drawSnake(){
+
+const head={
+x:snake[0].x+dx,
+y:snake[0].y+dy
+};
+
+if(
+head.x<0 ||
+head.y<0 ||
+head.x>=20 ||
+head.y>=20
+){
+gameOver();
+return;
+}
+
+for(let i=0;i<snake.length;i++){
+if(
+head.x===snake[i].x &&
+head.y===snake[i].y
+){
+gameOver();
+return;
+}
+}
+
+snake.unshift(head);
+
+if(
+head.x===food.x &&
+head.y===food.y
+){
+score++;
+food=randomFood();
+
+document.getElementById("info").innerHTML=
+"Arrow Keys | Score: "+score;
+
+}else{
+snake.pop();
+}
+
+ctx.clearRect(0,0,400,400);
+
+ctx.fillStyle="red";
+ctx.fillRect(food.x*20,food.y*20,20,20);
+
+ctx.fillStyle="green";
+
+snake.forEach(part=>{
+ctx.fillRect(
+part.x*20,
+part.y*20,
+18,
+18
+);
+});
+}
+
+/* =====================
+   PONG
+===================== */
+
+let paddleY,ballX,ballY,ballDX,ballDY;
+
+function startPong(){
+
+clearGame();
+
+currentGame="pong";
+
+paddleY=150;
+
+ballX=200;
+ballY=200;
+
+ballDX=3;
+ballDY=3;
+
+document.getElementById("info").innerHTML=
+"Move paddle with UP/DOWN";
+
+interval=setInterval(drawPong,20);
+}
+
+function drawPong(){
+
+ctx.clearRect(0,0,400,400);
+
+ctx.fillRect(20,paddleY,10,80);
+
+ctx.beginPath();
+ctx.arc(ballX,ballY,8,0,Math.PI*2);
+ctx.fill();
+
+ballX+=ballDX;
+ballY+=ballDY;
+
+if(ballY<0||ballY>400)
+ballDY*=-1;
+
+if(ballX>400)
+ballDX*=-1;
+
+if(ballX<30){
+
+if(
+ballY>paddleY &&
+ballY<paddleY+80
+){
+ballDX*=-1;
+}else{
+gameOver();
+}
+}
+}
+
+/* =====================
+   REACTION
+===================== */
+
+let reactionStart;
+
+function startReaction(){
+
+clearGame();
+
+currentGame="reaction";
+
+ctx.fillStyle="black";
+ctx.font="30px Arial";
+ctx.fillText("Wait...",140,200);
+
+reactionStart=null;
+
+setTimeout(()=>{
+
+ctx.clearRect(0,0,400,400);
+
+ctx.fillStyle="green";
+ctx.fillRect(0,0,400,400);
+
+ctx.fillStyle="black";
+ctx.font="30px Arial";
+ctx.fillText("CLICK!",140,200);
+
+reactionStart=Date.now();
+
+},Math.random()*3000+1000);
+
+canvas.onclick=function(){
+
+if(currentGame!=="reaction")
+return;
+
+if(!reactionStart)
+return;
+
+let result=
+Date.now()-reactionStart;
+
+ctx.clearRect(0,0,400,400);
+
+ctx.fillStyle="black";
+ctx.font="24px Arial";
+
+ctx.fillText(
+result+" ms",
+140,
+200
+);
+
+};
+}
+
+/* =====================
+   KEYS
+===================== */
+
+function handleKeys(e){
+
+if(currentGame==="snake"){
+
+if(e.key==="ArrowUp"&&dy===0){
+dx=0;dy=-1;
+}
+
+if(e.key==="ArrowDown"&&dy===0){
+dx=0;dy=1;
+}
+
+if(e.key==="ArrowLeft"&&dx===0){
+dx=-1;dy=0;
+}
+
+if(e.key==="ArrowRight"&&dx===0){
+dx=1;dy=0;
+}
+
+}
+
+if(currentGame==="pong"){
+
+if(e.key==="ArrowUp"){
+paddleY-=20;
+}
+
+if(e.key==="ArrowDown"){
+paddleY+=20;
+}
+
+}
+}
+
+function gameOver(){
+
+clearInterval(interval);
+
+ctx.fillStyle="black";
+ctx.font="40px Arial";
+ctx.fillText("GAME OVER",70,200);
+}
+
+startSnake();
+
 </script>
 
 </body>
