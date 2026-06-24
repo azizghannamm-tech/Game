@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<body style="text-align:center;font-family:Arial">
+
+<h2>Reaction Test</h2>
+
+<button id="btn" style="padding:40px;font-size:20px">
+Wait...
+</button>
+
+<p id="result"></p>
+
+<script>
+
+let start;
+
+setTimeout(()=>{
+
+document.getElementById("btn").innerHTML="CLICK NOW";
+
+start=Date.now();
+
+},Math.random()*4000+1000);
+
+document.getElementById("btn").onclick=function(){
+
+if(!start)return;
+
+let time=Date.now()-start;
+
+document.getElementById("result").innerHTML=
+"Reaction: "+time+" ms";
+
+start=null;
+
+};
+
+</script>
+
+</body>
+</html>
