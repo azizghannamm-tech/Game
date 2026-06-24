@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Nokia Games Collection</title>
+
+<style>
+body{
+    background:#d8e6c3;
+    font-family:Arial;
+    text-align:center;
+    margin:0;
+    padding:20px;
+}
+
+button{
+    padding:10px 20px;
+    margin:5px;
+    cursor:pointer;
+}
+
+iframe{
+    width:420px;
+    height:500px;
+    border:none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Nokia Games Collection</h1>
+
+<button onclick="loadGame('snake.html')">Snake</button>
+<button onclick="loadGame('pong.html')">Pong</button>
+<button onclick="loadGame('reaction.html')">Reaction</button>
+
+<br><br>
+
+<iframe id="gameFrame" src="snake.html"></iframe>
+
+<script>
+function loadGame(game){
+document.getElementById("gameFrame").src=game;
+}
+</script>
+
+</body>
+</html>
