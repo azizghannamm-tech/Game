@@ -1,151 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Arcade Hub</title>
+<title>Snake</title>
 
 <style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
 body{
-    font-family:Segoe UI, Arial;
-    background:linear-gradient(135deg,#0f172a,#020617);
-    color:white;
-    text-align:center;
+    margin:0;
+    background:#000;
 }
 
-/* Header */
-h1{
-    margin:20px 0;
-    font-size:2.5rem;
-}
-
-/* Game buttons */
-.menu{
-    display:flex;
-    justify-content:center;
-    gap:15px;
-    flex-wrap:wrap;
-    margin-bottom:20px;
-}
-
-.game-btn{
-    padding:12px 20px;
-    border-radius:12px;
-    border:none;
-    cursor:pointer;
-    font-weight:bold;
-    background:#1e293b;
-    color:white;
-    transition:0.3s;
-}
-
-.game-btn:hover{
-    background:#3b82f6;
-    transform:scale(1.05);
-}
-
-.active{
-    background:#3b82f6;
-}
-
-/* Frame container */
-.frame-container{
-    width:95%;
-    max-width:900px;
+canvas{
+    display:block;
     margin:auto;
-    position:relative;
-}
-
-/* Game iframe */
-iframe{
-    width:100%;
-    height:550px;
-    border:none;
-    border-radius:15px;
-    box-shadow:0 0 40px rgba(0,0,0,0.6);
-    transition:0.3s;
-}
-
-/* Controls */
-.controls{
-    margin-top:10px;
-}
-
-.control-btn{
-    padding:8px 14px;
-    margin:5px;
-    border:none;
-    border-radius:8px;
-    background:#3b82f6;
-    color:white;
-    cursor:pointer;
-}
-
-/* Fullscreen mode */
-.fullscreen iframe{
-    position:fixed;
-    top:0;
-    left:0;
-    width:100vw;
-    height:100vh;
-    border-radius:0;
-    z-index:999;
-}
-
-.fullscreen .menu,
-.fullscreen h1,
-.fullscreen .controls{
-    display:none;
+    background:#111;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🎮 Arcade Hub</h1>
-
-<div class="menu">
-    <button class="game-btn active" onclick="loadGame('snake.html', this)">Snake</button>
-    <button class="game-btn" onclick="loadGame('pong.html', this)">Pong</button>
-    <button class="game-btn" onclick="loadGame('reaction.html', this)">Reaction</button>
-</div>
-
-<div class="frame-container" id="container">
-    <iframe id="gameFrame" src="snake.html"></iframe>
-
-    <div class="controls">
-        <button class="control-btn" onclick="reloadGame()">Reload</button>
-        <button class="control-btn" onclick="toggleFullscreen()">Fullscreen</button>
-    </div>
-</div>
+<canvas id="game" width="400" height="400"></canvas>
 
 <script>
-let frame = document.getElementById("gameFrame");
-let container = document.getElementById("container");
+const c = document.getElementById("game");
+const ctx = c.getContext("2d");
 
-// Load game
-function loadGame(game, btn){
-    frame.src = game;
+let snake = [{x:200,y:200}];
+let food = {x:100,y:100};
 
-    // Highlight active button
-    document.querySelectorAll(".game-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
+let dx = 20;
+let dy = 0;
+
+document.addEventListener("keydown", e=>{
+    if(e.key==="ArrowUp"){dx=0;dy=-20;}
+    if(e.key==="ArrowDown"){dx=0;dy=20;}
+    if(e.key==="ArrowLeft"){dx=-20;dy=0;}
+    if(e.key==="ArrowRight"){dx=20;dy=0;}
+});
+
+function draw(){
+
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,0,400,400);
+
+    // food
+    ctx.fillStyle="red";
+    ctx.fillRect(food.x,food.y,20,20);
+
+    // snake
+    ctx.fillStyle="lime";
+    snake.forEach(p=>{
+        ctx.fillRect(p.x,p.y,20,20);
+    });
 }
 
-// Reload
-function reloadGame(){
-    frame.src = frame.src;
+function update(){
+
+    let head = {
+        x: snake[0].x + dx,
+        y: snake[0].y + dy
+    };
+
+    // walls
+    if(head.x<0||head.x>=400||head.y<0||head.y>=400){
+        alert("Game Over");
+        location.reload();
+    }
+
+    snake.unshift(head);
+
+    // eating
+    if(head.x===food.x && head.y===food.y){
+        food.x = Math.floor(Math.random()*20)*20;
+        food.y = Math.floor(Math.random()*20)*20;
+    } else{
+        snake.pop();
+    }
 }
 
-// Fullscreen toggle
-function toggleFullscreen(){
-    container.classList.toggle("fullscreen");
+function loop(){
+    update();
+    draw();
 }
+
+setInterval(loop,100);
 </script>
 
 </body>
