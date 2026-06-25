@@ -1,47 +1,150 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Nokia Games Collection</title>
+<title>Arcade Hub</title>
 
 <style>
-body{
-    background:#d8e6c3;
-    font-family:Arial;
-    text-align:center;
+*{
     margin:0;
-    padding:20px;
+    padding:0;
+    box-sizing:border-box;
 }
 
-button{
-    padding:10px 20px;
+body{
+    font-family:Segoe UI, Arial;
+    background:linear-gradient(135deg,#0f172a,#020617);
+    color:white;
+    text-align:center;
+}
+
+/* Header */
+h1{
+    margin:20px 0;
+    font-size:2.5rem;
+}
+
+/* Game buttons */
+.menu{
+    display:flex;
+    justify-content:center;
+    gap:15px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+
+.game-btn{
+    padding:12px 20px;
+    border-radius:12px;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+    background:#1e293b;
+    color:white;
+    transition:0.3s;
+}
+
+.game-btn:hover{
+    background:#3b82f6;
+    transform:scale(1.05);
+}
+
+.active{
+    background:#3b82f6;
+}
+
+/* Frame container */
+.frame-container{
+    width:95%;
+    max-width:900px;
+    margin:auto;
+    position:relative;
+}
+
+/* Game iframe */
+iframe{
+    width:100%;
+    height:550px;
+    border:none;
+    border-radius:15px;
+    box-shadow:0 0 40px rgba(0,0,0,0.6);
+    transition:0.3s;
+}
+
+/* Controls */
+.controls{
+    margin-top:10px;
+}
+
+.control-btn{
+    padding:8px 14px;
     margin:5px;
+    border:none;
+    border-radius:8px;
+    background:#3b82f6;
+    color:white;
     cursor:pointer;
 }
 
-iframe{
-    width:420px;
-    height:500px;
-    border:none;
+/* Fullscreen mode */
+.fullscreen iframe{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100vw;
+    height:100vh;
+    border-radius:0;
+    z-index:999;
+}
+
+.fullscreen .menu,
+.fullscreen h1,
+.fullscreen .controls{
+    display:none;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Nokia Games Collection</h1>
+<h1>🎮 Arcade Hub</h1>
 
-<button onclick="loadGame('snake.html')">Snake</button>
-<button onclick="loadGame('pong.html')">Pong</button>
-<button onclick="loadGame('reaction.html')">Reaction</button>
+<div class="menu">
+    <button class="game-btn active" onclick="loadGame('snake.html', this)">Snake</button>
+    <button class="game-btn" onclick="loadGame('pong.html', this)">Pong</button>
+    <button class="game-btn" onclick="loadGame('reaction.html', this)">Reaction</button>
+</div>
 
-<br><br>
+<div class="frame-container" id="container">
+    <iframe id="gameFrame" src="snake.html"></iframe>
 
-<iframe id="gameFrame" src="snake.html"></iframe>
+    <div class="controls">
+        <button class="control-btn" onclick="reloadGame()">Reload</button>
+        <button class="control-btn" onclick="toggleFullscreen()">Fullscreen</button>
+    </div>
+</div>
 
 <script>
-function loadGame(game){
-document.getElementById("gameFrame").src=game;
+let frame = document.getElementById("gameFrame");
+let container = document.getElementById("container");
+
+// Load game
+function loadGame(game, btn){
+    frame.src = game;
+
+    // Highlight active button
+    document.querySelectorAll(".game-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+}
+
+// Reload
+function reloadGame(){
+    frame.src = frame.src;
+}
+
+// Fullscreen toggle
+function toggleFullscreen(){
+    container.classList.toggle("fullscreen");
 }
 </script>
 
