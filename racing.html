@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Neon Racing</title>
+
+<style>
+body{
+    margin:0;
+    overflow:hidden;
+    background:#020617;
+    font-family:Segoe UI;
+}
+
+#ui{
+    position:fixed;
+    top:10px;
+    width:100%;
+    text-align:center;
+    color:white;
+    z-index:10;
+}
+
+#score{
+    font-size:22px;
+    text-shadow:0 0 10px #0ff;
+}
+
+button{
+    padding:8px 12px;
+    margin:5px;
+    border:none;
+    border-radius:8px;
+    background:#3b82f6;
+    color:white;
+    cursor:pointer;
+}
+
+canvas{
+    display:block;
+    margin:auto;
+    background:#0f172a;
+
+    box-shadow:
+    0 0 20px #00f,
+    0 0 60px #00f;
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">
+    <div id="score">Score: 0</div>
+    <button onclick="goHome()">Home</button>
+</div>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// Resize center
+function resize(){
+    let w = Math.min(window.innerWidth, 420);
+    let h = Math.min(window.innerHeight, 700);
+
+    canvas.width = w;
+    canvas.height = h;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// Game variables
+let player = { lane:1, y:0 };
+let lanes = 3;
+
+let cars = [];
+let speed = 5;
+let score = 0;
+let gameOver = false;
+
+// Keyboard control
+document.addEventListener("keydown", e=>{
+    if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
+    if(e.key==="ArrowRight" && player.lane<lanes-1) player.lane++;
+});
+
+// Spawn AI cars
+function spawnCar(){
+    let lane = Math.floor(Math.random()*lanes);
+    cars.push({ lane:lane, y:-100 });
+}
+
+// Draw road
+function drawRoad(){
+
+    ctx.fillStyle="#020617";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // lane lines
+    ctx.strokeStyle="#334155";
+    ctx.lineWidth=3;
+
+    for(let i=1;i<lanes;i++){
+        let x = i*canvas.width/lanes;
+        ctx.beginPath();
+        ctx.moveTo(x,0);
+        ctx.lineTo(x,canvas.height);
+        ctx.stroke();
+    }
+}
+
+// Draw car
+function drawCar(x,y,color){
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = color;
+
+    ctx.fillStyle=color;
+    ctx.fillRect(x-20,y-40,40,80);
+
+    ctx.shadowBlur = 0;
+}
+
+// Update
+function update(){
+
+    if(gameOver) return;
+
+    score++;
+    speed += 0.0005;
+
+    // player position
+    let laneWidth = canvas.width / lanes;
+    let px = player.lane * laneWidth + laneWidth/2;
+    let py = canvas.height - 100;
+
+    // move cars
+    cars.forEach(car=>{
+        car.y += speed;
+
+        let cx = car.lane * laneWidth + laneWidth/2;
+
+        // collision
+        if(Math.abs(cx-px)<30 && Math.abs(car.y-py)<60){
+            gameOver = true;
+            setTimeout(()=>alert("Game Over! Score: "+score),100);
+        }
+    });
+
+    // remove cars
+    cars = cars.filter(c=>c.y < canvas.height+100);
+
+    // spawn
+    if(Math.random() < 0.03){
+        spawnCar();
+    }
+
+    document.getElementById("score").innerText = "Score: " + score;
+}
+
+// Draw
+function draw(){
+
+    drawRoad();
+
+    let laneWidth = canvas.width / lanes;
+
+    // player
+    let px = player.lane * laneWidth + laneWidth/2;
+    drawCar(px, canvas.height-100, "#22c55e");
+
+    // AI cars
+    cars.forEach(car=>{
+        let cx = car.lane * laneWidth + laneWidth/2;
+        drawCar(cx, car.y, "#ef4444");
+    });
+}
+
+// Loop
+function loop(){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Home
+function goHome(){
+    window.location.href="index.html";
+}
+
+loop();
+</script>
+
+</body>
+</html>
