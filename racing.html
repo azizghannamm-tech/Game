@@ -40,7 +40,10 @@ canvas{
     display:block;
     margin:auto;
     background:#0f172a;
-    box-shadow:0 0 30px #00f;
+
+    box-shadow:
+    0 0 20px #00f,
+    0 0 60px #00f;
 }
 </style>
 </head>
@@ -49,7 +52,6 @@ canvas{
 
 <div id="ui">
     <div id="score">Score: 0</div>
-    <button onclick="restartGame()">Restart</button>
     <button onclick="goHome()">Home</button>
 </div>
 
@@ -59,46 +61,45 @@ canvas{
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let lanes = 3;
-let player, cars, speed, score, gameOver;
+// Resize center
+function resize(){
+    let w = Math.min(window.innerWidth, 420);
+    let h = Math.min(window.innerHeight, 700);
 
-// Init
-function init(){
-    player = { lane:1 };
-    cars = [];
-    speed = 5;
-    score = 0;
-    gameOver = false;
+    canvas.width = w;
+    canvas.height = h;
 }
-init();
+window.addEventListener("resize", resize);
+resize();
 
-// Controls
+// Game variables
+let player = { lane:1, y:0 };
+let lanes = 3;
+
+let cars = [];
+let speed = 5;
+let score = 0;
+let gameOver = false;
+
+// Keyboard control
 document.addEventListener("keydown", e=>{
-    if(gameOver) return;
-
     if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
     if(e.key==="ArrowRight" && player.lane<lanes-1) player.lane++;
 });
 
-// ✅ SAFE SPAWN SYSTEM
-function spawnRow(){
-    let safeLane = Math.floor(Math.random()*lanes);
-
-    for(let i=0;i<lanes;i++){
-        if(i !== safeLane){
-            cars.push({
-                lane: i,
-                y: -100
-            });
-        }
-    }
+// Spawn AI cars
+function spawnCar(){
+    let lane = Math.floor(Math.random()*lanes);
+    cars.push({ lane:lane, y:-100 });
 }
 
 // Draw road
 function drawRoad(){
+
     ctx.fillStyle="#020617";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
+    // lane lines
     ctx.strokeStyle="#334155";
     ctx.lineWidth=3;
 
@@ -128,30 +129,32 @@ function update(){
     if(gameOver) return;
 
     score++;
-    speed += 0.002;
+    speed += 0.0005;
 
+    // player position
     let laneWidth = canvas.width / lanes;
     let px = player.lane * laneWidth + laneWidth/2;
     let py = canvas.height - 100;
 
+    // move cars
     cars.forEach(car=>{
         car.y += speed;
 
         let cx = car.lane * laneWidth + laneWidth/2;
 
+        // collision
         if(Math.abs(cx-px)<30 && Math.abs(car.y-py)<60){
             gameOver = true;
-            setTimeout(()=>{
-                alert("Game Over! Score: " + score);
-            },100);
+            setTimeout(()=>alert("Game Over! Score: "+score),100);
         }
     });
 
+    // remove cars
     cars = cars.filter(c=>c.y < canvas.height+100);
 
-    // ✅ spawn rows (guaranteed gap)
-    if(Math.random() < 0.04){
-        spawnRow();
+    // spawn
+    if(Math.random() < 0.03){
+        spawnCar();
     }
 
     document.getElementById("score").innerText = "Score: " + score;
@@ -164,9 +167,11 @@ function draw(){
 
     let laneWidth = canvas.width / lanes;
 
+    // player
     let px = player.lane * laneWidth + laneWidth/2;
     drawCar(px, canvas.height-100, "#22c55e");
 
+    // AI cars
     cars.forEach(car=>{
         let cx = car.lane * laneWidth + laneWidth/2;
         drawCar(cx, car.y, "#ef4444");
@@ -180,11 +185,6 @@ function loop(){
     requestAnimationFrame(loop);
 }
 
-// ✅ Restart button
-function restartGame(){
-    init();
-}
-
 // Home
 function goHome(){
     window.location.href="index.html";
@@ -195,4 +195,3 @@ loop();
 
 </body>
 </html>
-``
