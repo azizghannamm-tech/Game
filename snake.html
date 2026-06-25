@@ -2,23 +2,48 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Snake</title>
+<title>Neon Snake</title>
 
 <style>
 body{
     margin:0;
-    background:#000;
+    background:#020617;
+    overflow:hidden;
+}
+
+/* UI */
+#ui{
+    position:fixed;
+    top:10px;
+    width:100%;
+    text-align:center;
+    color:white;
+    font-family:Segoe UI;
+}
+
+button{
+    padding:8px 14px;
+    margin:5px;
+    border:none;
+    border-radius:8px;
+    background:#3b82f6;
+    color:white;
+    cursor:pointer;
 }
 
 canvas{
     display:block;
     margin:auto;
-    background:#111;
+    background:#020617;
 }
 </style>
 </head>
 
 <body>
+
+<div id="ui">
+    <button onclick="goHome()">⬅ Back to Home</button>
+</div>
 
 <canvas id="game" width="400" height="400"></canvas>
 
@@ -26,35 +51,89 @@ canvas{
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
-let snake = [{x:200,y:200}];
-let food = {x:100,y:100};
+// 🎵 Background music
+const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_115b9bce37.mp3");
+bgMusic.loop = true;
+bgMusic.volume = 0.2;
 
-let dx = 20;
-let dy = 0;
-
-document.addEventListener("keydown", e=>{
-    if(e.key==="ArrowUp"){dx=0;dy=-20;}
-    if(e.key==="ArrowDown"){dx=0;dy=20;}
-    if(e.key==="ArrowLeft"){dx=-20;dy=0;}
-    if(e.key==="ArrowRight"){dx=20;dy=0;}
+document.addEventListener("click", () => {
+    if(bgMusic.paused) bgMusic.play();
 });
 
-function draw(){
+// 🔊 Eat sound
+function beep(freq){
+    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
 
-    ctx.fillStyle="#111";
-    ctx.fillRect(0,0,400,400);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
 
-    // food
-    ctx.fillStyle="red";
-    ctx.fillRect(food.x,food.y,20,20);
+    osc.frequency.value = freq;
+    gain.gain.value = 0.05;
 
-    // snake
-    ctx.fillStyle="lime";
-    snake.forEach(p=>{
-        ctx.fillRect(p.x,p.y,20,20);
-    });
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
 }
 
+// Game variables
+let snake, food, dx, dy;
+
+// Reset
+function init(){
+    snake = [{x:200,y:200}];
+    food = randFood();
+    dx = 20;
+    dy = 0;
+}
+
+function randFood(){
+    return {
+        x: Math.floor(Math.random()*20)*20,
+        y: Math.floor(Math.random()*20)*20
+    };
+}
+
+// Controls
+document.addEventListener("keydown", e=>{
+    if(e.key==="ArrowUp" && dy===0){dx=0;dy=-20;}
+    if(e.key==="ArrowDown" && dy===0){dx=0;dy=20;}
+    if(e.key==="ArrowLeft" && dx===0){dx=-20;dy=0;}
+    if(e.key==="ArrowRight" && dx===0){dx=20;dy=0;}
+});
+
+// Neon glow helper
+function glow(color){
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+}
+
+// Draw
+function draw(){
+
+    // Glow trail effect
+    ctx.fillStyle="rgba(2,6,23,0.3)";
+    ctx.fillRect(0,0,400,400);
+
+    // Food
+    glow("#ff0000");
+    ctx.fillRect(food.x,food.y,20,20);
+
+    // Snake (head brighter)
+    snake.forEach((segment,index)=>{
+        if(index === 0){
+            glow("#00ffcc"); // head
+        } else {
+            glow("#22c55e"); // body
+        }
+        ctx.fillRect(segment.x,segment.y,20,20);
+    });
+
+    ctx.shadowBlur = 0;
+}
+
+// Update
 function update(){
 
     let head = {
@@ -62,29 +141,42 @@ function update(){
         y: snake[0].y + dy
     };
 
-    // walls
-    if(head.x<0||head.x>=400||head.y<0||head.y>=400){
-        alert("Game Over");
-        location.reload();
+    // Collision → restart
+    if(
+        head.x < 0 || head.x >= 400 ||
+        head.y < 0 || head.y >= 400 ||
+        snake.some(seg => seg.x === head.x && seg.y === head.y)
+    ){
+        setTimeout(init,200);
+        return;
     }
 
     snake.unshift(head);
 
-    // eating
-    if(head.x===food.x && head.y===food.y){
-        food.x = Math.floor(Math.random()*20)*20;
-        food.y = Math.floor(Math.random()*20)*20;
-    } else{
+    // Eat
+    if(head.x === food.x && head.y === food.y){
+        beep(600);
+        food = randFood();
+    } else {
         snake.pop();
     }
 }
 
+// Loop
 function loop(){
     update();
     draw();
 }
 
 setInterval(loop,100);
+
+// Home
+function goHome(){
+    window.location.href = "index.html";
+}
+
+// Start
+init();
 </script>
 
 </body>
