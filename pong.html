@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pong - Aziz Arcade</title>
+<title>Neon Pong - Aziz Arcade</title>
 
 <style>
 body{
     margin:0;
     overflow:hidden;
-    background:#0f172a;
+    background:#020617;
     font-family:Segoe UI, Arial;
     color:white;
 }
@@ -23,8 +23,9 @@ body{
 }
 
 #score{
-    font-size:22px;
+    font-size:24px;
     margin-bottom:8px;
+    text-shadow:0 0 10px #00f;
 }
 
 button{
@@ -57,13 +58,31 @@ button:hover{
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// Resize safely
+// Resize
 function resize(){
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
 window.addEventListener("resize", resize);
 resize();
+
+// Sound (simple arcade beeps)
+function playBeep(freq){
+    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let oscillator = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+
+    oscillator.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    oscillator.frequency.value = freq;
+    oscillator.type = "square";
+
+    gain.gain.value = 0.05;
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.1);
+}
 
 // Game variables
 let paddleHeight = 100;
@@ -75,8 +94,8 @@ let aiY = canvas.height / 2 - 50;
 let ballX = canvas.width / 2;
 let ballY = canvas.height / 2;
 
-let dx = 4;
-let dy = 4;
+let dx = 5;
+let dy = 5;
 
 let score = 0;
 let paused = false;
@@ -85,30 +104,58 @@ let paused = false;
 document.addEventListener("mousemove",(e)=>{
     playerY = e.clientY - paddleHeight/2;
 
-    // Keep inside screen
     if(playerY < 0) playerY = 0;
     if(playerY > canvas.height - paddleHeight)
         playerY = canvas.height - paddleHeight;
 });
 
-// Draw everything
+// Draw neon
+function neon(color){
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+}
+
+// Draw
 function draw(){
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // Slight trail effect
+    ctx.fillStyle = "rgba(2,6,23,0.3)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 
     // Player paddle
-    ctx.fillStyle = "#22c55e";
+    neon("#22c55e");
     ctx.fillRect(20, playerY, paddleWidth, paddleHeight);
 
     // AI paddle
-    ctx.fillStyle = "#ef4444";
+    neon("#ef4444");
     ctx.fillRect(canvas.width - 30, aiY, paddleWidth, paddleHeight);
 
     // Ball
+    neon("#38bdf8");
     ctx.beginPath();
     ctx.arc(ballX, ballY, 10, 0, Math.PI*2);
-    ctx.fillStyle = "#fff";
     ctx.fill();
+
+    ctx.shadowBlur = 0;
+}
+
+// AI difficulty (predictive)
+function moveAI(){
+    let target = ballY;
+
+    // Predict ball position when it reaches AI
+    if(dx > 0){
+        let time = (canvas.width - ballX) / dx;
+        target = ballY + dy * time;
+    }
+
+    aiY += (target - (aiY + paddleHeight/2)) * 0.15;
+
+    // Clamp
+    if(aiY < 0) aiY = 0;
+    if(aiY > canvas.height - paddleHeight)
+        aiY = canvas.height - paddleHeight;
 }
 
 // Update game
@@ -118,18 +165,21 @@ function update(){
     ballX += dx;
     ballY += dy;
 
-    // Wall bounce
+    // Bounce top/bottom
     if(ballY < 10 || ballY > canvas.height - 10){
         dy *= -1;
+        playBeep(300);
     }
 
     // Player hit
     if(ballX < 32){
         if(ballY > playerY && ballY < playerY + paddleHeight){
-            dx *= -1;
+            dx *= -1.05; // speed increase
             score++;
             document.getElementById("score").innerText =
                 "Score: " + score;
+
+            playBeep(600);
         }else{
             gameOver();
         }
@@ -138,17 +188,17 @@ function update(){
     // AI hit
     if(ballX > canvas.width - 40){
         if(ballY > aiY && ballY < aiY + paddleHeight){
-            dx *= -1;
+            dx *= -1.05;
+            playBeep(500);
         }else{
             dx *= -1;
         }
     }
 
-    // Simple AI
-    aiY += (ballY - (aiY + paddleHeight/2)) * 0.08;
+    moveAI();
 }
 
-// Loop (ALWAYS runs)
+// Loop
 function loop(){
     update();
     draw();
@@ -167,22 +217,25 @@ function restartGame(){
     ballX = canvas.width / 2;
     ballY = canvas.height / 2;
 
-    dx = 4;
-    dy = 4;
+    dx = 5 * (Math.random()>0.5?1:-1);
+    dy = 5 * (Math.random()>0.5?1:-1);
 
     paused = false;
 }
 
+// Game over
 function gameOver(){
     paused = true;
+    playBeep(120);
     setTimeout(()=>{
         alert("Game Over! Score: " + score);
     },50);
 }
 
-// START GAME
+// Start
 loop();
 </script>
 
 </body>
 </html>
+``
