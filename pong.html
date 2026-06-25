@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Neon Pong - Aziz Arcade</title>
+<title>Neon Pong</title>
 
 <style>
 body{
     margin:0;
     overflow:hidden;
     background:#020617;
-    font-family:Segoe UI, Arial;
+    font-family:Segoe UI;
     color:white;
 }
 
@@ -19,17 +19,16 @@ body{
     top:10px;
     width:100%;
     text-align:center;
-    z-index:10;
 }
 
 #score{
-    font-size:24px;
+    font-size:22px;
     margin-bottom:8px;
-    text-shadow:0 0 10px #00f;
+    text-shadow:0 0 10px #0ff;
 }
 
 button{
-    padding:8px 14px;
+    padding:8px 12px;
     margin:3px;
     border:none;
     border-radius:8px;
@@ -37,19 +36,16 @@ button{
     color:white;
     cursor:pointer;
 }
-
-button:hover{
-    background:#2563eb;
-}
 </style>
 </head>
 
 <body>
 
 <div id="ui">
-    <div id="score">Score: 0</div>
+    <div id="score">Player: 0 | Opponent: 0</div>
     <button onclick="togglePause()">Pause</button>
     <button onclick="restartGame()">Restart</button>
+    <button onclick="toggleMode()">Switch Mode</button>
 </div>
 
 <canvas id="game"></canvas>
@@ -58,59 +54,71 @@ button:hover{
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// Resize
 function resize(){
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
-window.addEventListener("resize", resize);
 resize();
+window.addEventListener("resize", resize);
 
-// Sound (simple arcade beeps)
-function playBeep(freq){
-    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    let oscillator = audioCtx.createOscillator();
-    let gain = audioCtx.createGain();
+// 🎵 Background Music
+const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_115b9bce37.mp3");
+bgMusic.loop = true;
+bgMusic.volume = 0.2;
 
-    oscillator.connect(gain);
-    gain.connect(audioCtx.destination);
+// try autoplay (browser may block until first interaction)
+document.addEventListener("click", () => {
+    if(bgMusic.paused) bgMusic.play();
+});
 
-    oscillator.frequency.value = freq;
-    oscillator.type = "square";
+// 🔊 Sound FX
+function beep(freq){
+    let ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+    let osc = ctxAudio.createOscillator();
+    let gain = ctxAudio.createGain();
 
+    osc.connect(gain);
+    gain.connect(ctxAudio.destination);
+
+    osc.frequency.value = freq;
     gain.gain.value = 0.05;
 
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.1);
+    osc.start();
+    osc.stop(ctxAudio.currentTime + 0.1);
 }
 
-// Game variables
-let paddleHeight = 100;
-let paddleWidth = 12;
+// Game state
+let playerY = 200;
+let enemyY = 200;
 
-let playerY = canvas.height / 2 - 50;
-let aiY = canvas.height / 2 - 50;
+let paddleH = 100;
 
-let ballX = canvas.width / 2;
-let ballY = canvas.height / 2;
-
+let ballX = 300;
+let ballY = 200;
 let dx = 5;
 let dy = 5;
 
-let score = 0;
+let playerScore = 0;
+let enemyScore = 0;
+
 let paused = false;
+let multiplayer = false;
 
-// Mouse control
-document.addEventListener("mousemove",(e)=>{
-    playerY = e.clientY - paddleHeight/2;
-
-    if(playerY < 0) playerY = 0;
-    if(playerY > canvas.height - paddleHeight)
-        playerY = canvas.height - paddleHeight;
+// 🖱 Player mouse (always active)
+document.addEventListener("mousemove", e=>{
+    playerY = e.clientY - paddleH/2;
 });
 
-// Draw neon
-function neon(color){
+// 🎮 Keyboard multiplayer
+document.addEventListener("keydown", e=>{
+    if(multiplayer){
+        if(e.key === "ArrowUp") enemyY -= 30;
+        if(e.key === "ArrowDown") enemyY += 30;
+    }
+});
+
+// Neon glow
+function glow(color){
     ctx.shadowBlur = 20;
     ctx.shadowColor = color;
     ctx.fillStyle = color;
@@ -119,20 +127,16 @@ function neon(color){
 // Draw
 function draw(){
 
-    // Slight trail effect
-    ctx.fillStyle = "rgba(2,6,23,0.3)";
+    ctx.fillStyle="rgba(2,6,23,0.3)";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // Player paddle
-    neon("#22c55e");
-    ctx.fillRect(20, playerY, paddleWidth, paddleHeight);
+    glow("#22c55e");
+    ctx.fillRect(20, playerY, 12, paddleH);
 
-    // AI paddle
-    neon("#ef4444");
-    ctx.fillRect(canvas.width - 30, aiY, paddleWidth, paddleHeight);
+    glow("#ef4444");
+    ctx.fillRect(canvas.width-30, enemyY, 12, paddleH);
 
-    // Ball
-    neon("#38bdf8");
+    glow("#38bdf8");
     ctx.beginPath();
     ctx.arc(ballX, ballY, 10, 0, Math.PI*2);
     ctx.fill();
@@ -140,62 +144,73 @@ function draw(){
     ctx.shadowBlur = 0;
 }
 
-// AI difficulty (predictive)
-function moveAI(){
+// 🤖 AI (used only if NOT multiplayer)
+function aiMove(){
     let target = ballY;
 
-    // Predict ball position when it reaches AI
     if(dx > 0){
-        let time = (canvas.width - ballX) / dx;
-        target = ballY + dy * time;
+        let t = (canvas.width - ballX) / dx;
+        target = ballY + dy*t;
     }
 
-    aiY += (target - (aiY + paddleHeight/2)) * 0.15;
-
-    // Clamp
-    if(aiY < 0) aiY = 0;
-    if(aiY > canvas.height - paddleHeight)
-        aiY = canvas.height - paddleHeight;
+    enemyY += (target - (enemyY + paddleH/2)) * 0.12;
 }
 
-// Update game
+// Update
 function update(){
     if(paused) return;
 
     ballX += dx;
     ballY += dy;
 
-    // Bounce top/bottom
-    if(ballY < 10 || ballY > canvas.height - 10){
+    // Wall
+    if(ballY < 10 || ballY > canvas.height-10){
         dy *= -1;
-        playBeep(300);
+        beep(300);
     }
 
-    // Player hit
+    // Player collision
     if(ballX < 32){
-        if(ballY > playerY && ballY < playerY + paddleHeight){
-            dx *= -1.05; // speed increase
-            score++;
-            document.getElementById("score").innerText =
-                "Score: " + score;
-
-            playBeep(600);
-        }else{
-            gameOver();
-        }
-    }
-
-    // AI hit
-    if(ballX > canvas.width - 40){
-        if(ballY > aiY && ballY < aiY + paddleHeight){
+        if(ballY > playerY && ballY < playerY + paddleH){
             dx *= -1.05;
-            playBeep(500);
-        }else{
-            dx *= -1;
+            beep(600);
+        } else {
+            enemyScore++;
+            resetBall();
         }
     }
 
-    moveAI();
+    // Enemy collision
+    if(ballX > canvas.width - 40){
+        if(ballY > enemyY && ballY < enemyY + paddleH){
+            dx *= -1.05;
+            beep(500);
+        } else {
+            playerScore++;
+            resetBall();
+        }
+    }
+
+    if(!multiplayer){
+        aiMove();
+    }
+
+    updateScore();
+}
+
+// Reset ball
+function resetBall(){
+    ballX = canvas.width/2;
+    ballY = canvas.height/2;
+
+    dx = 5 * (Math.random()>0.5?1:-1);
+    dy = 5 * (Math.random()>0.5?1:-1);
+}
+
+// Score display
+function updateScore(){
+    document.getElementById("score").innerText =
+        `Player: ${playerScore} | Opponent: ${enemyScore}`;
 }
 
 // Loop
@@ -211,31 +226,19 @@ function togglePause(){
 }
 
 function restartGame(){
-    score = 0;
-    document.getElementById("score").innerText = "Score: 0";
-
-    ballX = canvas.width / 2;
-    ballY = canvas.height / 2;
-
-    dx = 5 * (Math.random()>0.5?1:-1);
-    dy = 5 * (Math.random()>0.5?1:-1);
-
-    paused = false;
+    playerScore = 0;
+    enemyScore = 0;
+    resetBall();
 }
 
-// Game over
-function gameOver(){
-    paused = true;
-    playBeep(120);
-    setTimeout(()=>{
-        alert("Game Over! Score: " + score);
-    },50);
+function toggleMode(){
+    multiplayer = !multiplayer;
+    alert(multiplayer ? "Multiplayer Mode" : "AI Mode");
 }
 
-// Start
+// start game
 loop();
 </script>
 
 </body>
 </html>
-``
