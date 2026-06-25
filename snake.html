@@ -19,6 +19,7 @@ body{
     text-align:center;
     color:white;
     font-family:Segoe UI;
+    z-index:10;
 }
 
 button{
@@ -31,10 +32,23 @@ button{
     cursor:pointer;
 }
 
+/* Canvas container */
+#container{
+    width:100vw;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+/* Neon border */
 canvas{
-    display:block;
-    margin:auto;
     background:#020617;
+    border:4px solid #00ffff;
+    box-shadow:
+        0 0 10px #00ffff,
+        0 0 30px #00ffff,
+        inset 0 0 20px rgba(0,255,255,0.3);
 }
 </style>
 </head>
@@ -45,11 +59,26 @@ canvas{
     <button onclick="goHome()">⬅ Back to Home</button>
 </div>
 
-<canvas id="game" width="400" height="400"></canvas>
+<div id="container">
+    <canvas id="game"></canvas>
+</div>
 
 <script>
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
+
+// Fullscreen resize
+function resize(){
+    let size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+
+    // keep perfect square grid
+    size = Math.floor(size / 20) * 20;
+
+    c.width = size;
+    c.height = size;
+}
+window.addEventListener("resize", resize);
+resize();
 
 // 🎵 Background music
 const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_115b9bce37.mp3");
@@ -60,7 +89,7 @@ document.addEventListener("click", () => {
     if(bgMusic.paused) bgMusic.play();
 });
 
-// 🔊 Eat sound
+// 🔊 sound
 function beep(freq){
     let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let osc = audioCtx.createOscillator();
@@ -78,31 +107,32 @@ function beep(freq){
 
 // Game variables
 let snake, food, dx, dy;
+let grid = 20;
 
 // Reset
 function init(){
     snake = [{x:200,y:200}];
     food = randFood();
-    dx = 20;
+    dx = grid;
     dy = 0;
 }
 
 function randFood(){
     return {
-        x: Math.floor(Math.random()*20)*20,
-        y: Math.floor(Math.random()*20)*20
+        x: Math.floor(Math.random()*(c.width/grid))*grid,
+        y: Math.floor(Math.random()*(c.height/grid))*grid
     };
 }
 
 // Controls
 document.addEventListener("keydown", e=>{
-    if(e.key==="ArrowUp" && dy===0){dx=0;dy=-20;}
-    if(e.key==="ArrowDown" && dy===0){dx=0;dy=20;}
-    if(e.key==="ArrowLeft" && dx===0){dx=-20;dy=0;}
-    if(e.key==="ArrowRight" && dx===0){dx=20;dy=0;}
+    if(e.key==="ArrowUp" && dy===0){dx=0;dy=-grid;}
+    if(e.key==="ArrowDown" && dy===0){dx=0;dy=grid;}
+    if(e.key==="ArrowLeft" && dx===0){dx=-grid;dy=0;}
+    if(e.key==="ArrowRight" && dx===0){dx=grid;dy=0;}
 });
 
-// Neon glow helper
+// Neon glow
 function glow(color){
     ctx.shadowBlur = 20;
     ctx.shadowColor = color;
@@ -112,22 +142,17 @@ function glow(color){
 // Draw
 function draw(){
 
-    // Glow trail effect
-    ctx.fillStyle="rgba(2,6,23,0.3)";
-    ctx.fillRect(0,0,400,400);
+    ctx.fillStyle="rgba(2,6,23,0.4)";
+    ctx.fillRect(0,0,c.width,c.height);
 
-    // Food
+    // food
     glow("#ff0000");
-    ctx.fillRect(food.x,food.y,20,20);
+    ctx.fillRect(food.x,food.y,grid,grid);
 
-    // Snake (head brighter)
-    snake.forEach((segment,index)=>{
-        if(index === 0){
-            glow("#00ffcc"); // head
-        } else {
-            glow("#22c55e"); // body
-        }
-        ctx.fillRect(segment.x,segment.y,20,20);
+    // snake
+    snake.forEach((s,i)=>{
+        glow(i===0 ? "#00ffff" : "#22c55e");
+        ctx.fillRect(s.x,s.y,grid,grid);
     });
 
     ctx.shadowBlur = 0;
@@ -141,10 +166,10 @@ function update(){
         y: snake[0].y + dy
     };
 
-    // Collision → restart
+    // collision
     if(
-        head.x < 0 || head.x >= 400 ||
-        head.y < 0 || head.y >= 400 ||
+        head.x < 0 || head.x >= c.width ||
+        head.y < 0 || head.y >= c.height ||
         snake.some(seg => seg.x === head.x && seg.y === head.y)
     ){
         setTimeout(init,200);
@@ -153,7 +178,6 @@ function update(){
 
     snake.unshift(head);
 
-    // Eat
     if(head.x === food.x && head.y === food.y){
         beep(600);
         food = randFood();
@@ -172,11 +196,12 @@ setInterval(loop,100);
 
 // Home
 function goHome(){
-    window.location.href = "index.html";
+    window.location.href="index.html";
 }
 
 // Start
 init();
+
 </script>
 
 </body>
