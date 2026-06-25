@@ -7,18 +7,24 @@
 <style>
 body{
     margin:0;
-    background:#020617;
     overflow:hidden;
+
+    /* 🔥 NEW BACKGROUND */
+    background:
+    radial-gradient(circle at center, #0f172a, #020617 80%);
+    
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
 }
 
 /* UI */
 #ui{
     position:fixed;
-    top:10px;
+    top:20px;
     width:100%;
     text-align:center;
-    color:white;
-    font-family:Segoe UI;
     z-index:10;
 }
 
@@ -32,23 +38,24 @@ button{
     cursor:pointer;
 }
 
-/* Canvas container */
-#container{
-    width:100vw;
-    height:100vh;
+/* Game wrapper (centers everything cleanly) */
+#gameWrapper{
     display:flex;
-    justify-content:center;
+    flex-direction:column;
     align-items:center;
 }
 
 /* Neon border */
 canvas{
     background:#020617;
-    border:4px solid #00ffff;
+
+    border:4px solid #38bdf8;
+
     box-shadow:
-        0 0 10px #00ffff,
-        0 0 30px #00ffff,
-        inset 0 0 20px rgba(0,255,255,0.3);
+        0 0 10px #38bdf8,
+        0 0 30px #38bdf8,
+        0 0 60px #38bdf8,
+        inset 0 0 25px rgba(56,189,248,0.3);
 }
 </style>
 </head>
@@ -59,7 +66,7 @@ canvas{
     <button onclick="goHome()">⬅ Back to Home</button>
 </div>
 
-<div id="container">
+<div id="gameWrapper">
     <canvas id="game"></canvas>
 </div>
 
@@ -67,11 +74,10 @@ canvas{
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
-// Fullscreen resize
+// Resize (perfect square)
 function resize(){
-    let size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    let size = Math.min(window.innerWidth, window.innerHeight) * 0.7;
 
-    // keep perfect square grid
     size = Math.floor(size / 20) * 20;
 
     c.width = size;
@@ -89,7 +95,7 @@ document.addEventListener("click", () => {
     if(bgMusic.paused) bgMusic.play();
 });
 
-// 🔊 sound
+// 🔊 Sound
 function beep(freq){
     let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let osc = audioCtx.createOscillator();
@@ -109,7 +115,7 @@ function beep(freq){
 let snake, food, dx, dy;
 let grid = 20;
 
-// Reset
+// Init
 function init(){
     snake = [{x:200,y:200}];
     food = randFood();
@@ -132,7 +138,7 @@ document.addEventListener("keydown", e=>{
     if(e.key==="ArrowRight" && dx===0){dx=grid;dy=0;}
 });
 
-// Neon glow
+// Glow
 function glow(color){
     ctx.shadowBlur = 20;
     ctx.shadowColor = color;
@@ -145,13 +151,13 @@ function draw(){
     ctx.fillStyle="rgba(2,6,23,0.4)";
     ctx.fillRect(0,0,c.width,c.height);
 
-    // food
-    glow("#ff0000");
+    // Food
+    glow("#ef4444");
     ctx.fillRect(food.x,food.y,grid,grid);
 
-    // snake
+    // Snake
     snake.forEach((s,i)=>{
-        glow(i===0 ? "#00ffff" : "#22c55e");
+        glow(i===0 ? "#06b6d4" : "#22c55e");
         ctx.fillRect(s.x,s.y,grid,grid);
     });
 
@@ -166,13 +172,12 @@ function update(){
         y: snake[0].y + dy
     };
 
-    // collision
     if(
         head.x < 0 || head.x >= c.width ||
         head.y < 0 || head.y >= c.height ||
         snake.some(seg => seg.x === head.x && seg.y === head.y)
     ){
-        setTimeout(init,200);
+        setTimeout(init, 200);
         return;
     }
 
@@ -194,7 +199,7 @@ function loop(){
 
 setInterval(loop,100);
 
-// Home
+// Home button
 function goHome(){
     window.location.href="index.html";
 }
