@@ -66,10 +66,25 @@ canvas.addEventListener("touchend", e=>{
     }
 });
 
-// 🚗 Spawn cars
+// 🚗 FIXED spawn system
 function spawnRow(){
-    let highest = cars.length ? Math.min(...cars.map(c => c.y)) : 9999;
-    if(highest > -300) return;
+
+    // ✅ FIRST SPAWN (critical fix)
+    if(cars.length === 0){
+        for(let i = 0; i < lanes; i++){
+            if(i !== 1){ // safe center at start
+                cars.push({ lane: i, y: -100 });
+            }
+        }
+        coinsList.push({ lane: 1, y: -120 });
+        return;
+    }
+
+    let highest = Math.min(...cars.map(c => c.y));
+
+    let minGap = 260; // slightly tighter = more action
+
+    if(highest > -minGap) return;
 
     let safeLane;
     do {
@@ -88,7 +103,7 @@ function spawnRow(){
     coinsList.push({ lane: safeLane, y:-120 });
 }
 
-// 🛣️ Road (endless effect)
+// 🛣️ Road
 function drawRoad(){
     ctx.fillStyle="#020617";
     ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -132,6 +147,7 @@ function update(){
     if(gameOver) return;
 
     score++;
+
     speed += 0.0008;
     speed = Math.min(speed, 12);
 
@@ -151,7 +167,7 @@ function update(){
             crashSound.play();
             gameOver = true;
             setTimeout(()=>{
-                if(confirm("Game Over! Score: "+score+"\nCoins: "+coins+"\nRestart?")){
+                if(confirm("Game Over!\nScore: "+score+"\nCoins: "+coins+"\nRestart?")){
                     init();
                 }
             },100);
@@ -171,7 +187,6 @@ function update(){
     });
 
     coinsList = coinsList.filter(c => !c.collected && c.y < canvas.height);
-
     cars = cars.filter(c => c.y < canvas.height + 100);
 
     spawnRow();
