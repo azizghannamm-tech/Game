@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Car Endless Runner</title>
+<title>Runner Pro</title>
 
 <style>
 body{
@@ -48,87 +48,71 @@ canvas{ display:block; margin:auto; }
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let lanes = 3;
-let player, cars, coinsList, speed, score, coins;
-let gameOver, paused = false;
+let lanes = 4;
 
-let roadOffset = 0;
+let player, cars, coinsList, speed, score, coins;
+let gameOver=false, paused=false;
+let roadOffset=0;
+let shake = 0;
 
 // init
 function init(){
     player = { lane:1, x:0, targetX:0 };
-    cars = [];
-    coinsList = [];
-    speed = 5;
-    score = 0;
-    coins = 0;
-    gameOver = false;
+    cars=[];
+    coinsList=[];
+    speed=5;
+    score=0;
+    coins=0;
+    gameOver=false;
+    roadOffset=0;
 }
 
-// ✅ RANDOM SPAWN SYSTEM
+// 🔥 ADVANCED RANDOM SPAWN
 function spawnRow(){
 
     if(cars.length === 0){
         cars.push({lane:0,y:-100});
         cars.push({lane:2,y:-100});
-        coinsList.push({lane:1,y:-120});
+        cars.push({lane:3,y:-100});
+        coinsList.push({lane:1,y:-120,spin:0});
         return;
     }
 
     let highest = Math.min(...cars.map(c=>c.y));
     if(highest > -260) return;
 
-    let pattern = Math.floor(Math.random()*5);
+    let laneArray = [0,1,2,3];
 
-    let used = [];
+    // ✅ choose 2 or 3 blocked lanes
+    let blockCount = Math.random() < 0.5 ? 2 : 3;
 
-    switch(pattern){
+    // shuffle lanes
+    laneArray.sort(()=>Math.random()-0.5);
 
-        // ✅ 2 cars (normal)
-        case 0:
-            let safeLane = Math.floor(Math.random()*lanes);
-            for(let i=0;i<lanes;i++){
-                if(i!==safeLane){
-                    cars.push({lane:i,y:-100});
-                    used.push(i);
-                }
-            }
-            coinsList.push({lane:safeLane,y:-120});
-        break;
+    let blocked = laneArray.slice(0, blockCount);
+    let safe = laneArray.slice(blockCount);
 
-        // ✅ 1 random car
-        case 1:
-            let lane = Math.floor(Math.random()*lanes);
-            cars.push({lane:lane,y:-100});
-            coinsList.push({lane:lane,y:-120});
-        break;
+    // spawn cars
+    blocked.forEach(l=>{
+        cars.push({
+            lane:l,
+            y:-100,
+            width:30 + Math.random()*20, // variation
+            height:70 + Math.random()*20
+        });
+    });
 
-        // ✅ 2 adjacent block
-        case 2:
-            let start = Math.floor(Math.random()*(lanes-1));
-            cars.push({lane:start,y:-100});
-            cars.push({lane:start+1,y:-100});
-            coinsList.push({lane:(3-(start+(start+1))),y:-120});
-        break;
-
-        // ✅ random chaos (1–2 cars)
-        case 3:
-            let count = Math.floor(Math.random()*2)+1;
-            for(let i=0;i<count;i++){
-                let l = Math.floor(Math.random()*lanes);
-                cars.push({lane:l,y:-100});
-            }
-        break;
-
-        // ✅ empty with coins (reward row)
-        case 4:
-            let coinLane = Math.floor(Math.random()*lanes);
-            coinsList.push({lane:coinLane,y:-120});
-        break;
-    }
+    // ✅ coins in safe lanes
+    safe.forEach(l=>{
+        coinsList.push({
+            lane:l,
+            y:-120,
+            spin:0
+        });
+    });
 }
 
-// draw road
+// 🛣 Road
 function drawRoad(){
     ctx.fillStyle="#020617";
     ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -136,6 +120,7 @@ function drawRoad(){
     let laneWidth = canvas.width/lanes;
 
     ctx.strokeStyle="#334155";
+    ctx.lineWidth=3;
 
     for(let i=1;i<lanes;i++){
         let x=i*laneWidth;
@@ -149,23 +134,40 @@ function drawRoad(){
     }
 }
 
-// car
-function drawCar(x,y,color){
-    ctx.shadowBlur=15;
+// 🚗 Better car style
+function drawCar(x,y,w,h,color,tilt=0){
+
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(tilt);
+
+    let grad = ctx.createLinearGradient(-w/2,-h/2,w/2,h/2);
+    grad.addColorStop(0,"white");
+    grad.addColorStop(1,color);
+
+    ctx.shadowBlur=25;
     ctx.shadowColor=color;
 
-    ctx.fillStyle=color;
-    ctx.fillRect(x-20,y-40,40,80);
+    ctx.fillStyle=grad;
+    ctx.fillRect(-w/2,-h/2,w,h);
 
+    ctx.restore();
     ctx.shadowBlur=0;
 }
 
-// coin
-function drawCoin(x,y){
+// 💰 animated coin
+function drawCoin(x,y,spin){
+
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(spin);
+
     ctx.fillStyle="gold";
     ctx.beginPath();
-    ctx.arc(x,y,10,0,Math.PI*2);
+    ctx.arc(0,0,10,0,Math.PI*2);
     ctx.fill();
+
+    ctx.restore();
 }
 
 // update
@@ -174,35 +176,40 @@ function update(){
     if(gameOver || paused) return;
 
     score++;
-    speed += 0.0008;
+    speed += 0.0007;
+    speed = Math.min(speed,13);
 
     let laneWidth = canvas.width/lanes;
 
     // smooth movement
     player.targetX = player.lane * laneWidth + laneWidth/2;
-    player.x += (player.targetX - player.x)*0.2;
+    player.x += (player.targetX - player.x)*0.15;
 
     let px = player.x;
     let py = canvas.height-100;
 
     // cars
     cars.forEach(car=>{
-        car.y+=speed;
-        let cx = car.lane*laneWidth + laneWidth/2;
+        car.y += speed;
 
-        if(Math.abs(cx-px)<25 && Math.abs(car.y-py)<50){
-            gameOver=true;
+        let cx = car.lane * laneWidth + laneWidth/2;
+
+        if(Math.abs(cx-px) < 25 && Math.abs(car.y-py) < 45){
+            gameOver = true;
+            shake = 12;
         }
     });
 
     // coins
     coinsList.forEach(c=>{
-        c.y+=speed;
-        let cx = c.lane*laneWidth + laneWidth/2;
+        c.y += speed;
+        c.spin += 0.12;
 
-        if(Math.abs(cx-px)<25 && Math.abs(c.y-py)<50){
+        let cx = c.lane * laneWidth + laneWidth/2;
+
+        if(Math.abs(cx-px)<25 && Math.abs(c.y-py)<45){
             coins++;
-            c.collected=true;
+            c.collected = true;
         }
     });
 
@@ -216,26 +223,38 @@ function update(){
 
     document.getElementById("score").innerText="Score: "+score;
     document.getElementById("coins").innerText="Coins: "+coins;
+
+    if(shake>0) shake--;
 }
 
 // draw
 function draw(){
 
+    ctx.save();
+
+    if(shake>0){
+        ctx.translate(Math.random()*shake - shake/2, Math.random()*shake - shake/2);
+    }
+
     drawRoad();
 
     let laneWidth = canvas.width/lanes;
 
-    drawCar(player.x, canvas.height-100, "#22c55e");
+    let tilt = (player.targetX - player.x)*0.003;
+
+    drawCar(player.x, canvas.height-100, 35, 80, "#22c55e", tilt);
 
     cars.forEach(car=>{
         let cx = car.lane*laneWidth + laneWidth/2;
-        drawCar(cx, car.y, "#ef4444");
+        drawCar(cx, car.y, car.width, car.height, "#ef4444");
     });
 
     coinsList.forEach(c=>{
         let cx = c.lane*laneWidth + laneWidth/2;
-        drawCoin(cx, c.y);
+        drawCoin(cx, c.y, c.spin);
     });
+
+    ctx.restore();
 }
 
 // loop
@@ -244,6 +263,13 @@ function loop(){
     draw();
     requestAnimationFrame(loop);
 }
+
+// controls
+document.addEventListener("keydown", e=>{
+    if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
+    if(e.key==="ArrowRight" && player.lane<lanes-1) player.lane++;
+    if(e.key==="Escape") togglePause();
+});
 
 // buttons
 function togglePause(){
@@ -254,13 +280,7 @@ function restartGame(){
     init();
 }
 
-// controls
-document.addEventListener("keydown", e=>{
-    if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
-    if(e.key==="ArrowRight" && player.lane<lanes-1) player.lane++;
-    if(e.key==="Escape") togglePause();
-});
-
+// start
 init();
 loop();
 </script>
