@@ -1,78 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Car Endless Runner</title>
+<style>
+    body { margin:0; background:#020617; color:white; text-align:center; font-family:sans-serif; }
+    canvas { background:#020617; display:block; margin:auto; }
+    #ui { position:absolute; top:10px; left:10px; }
+</style>
+</head>
+
+<body>
+
+<div id="ui">
+    <div id="score">Score: 0</div>
+    <div id="coins">Coins: 0</div>
+</div>
+
+<canvas id="game" width="400" height="600"></canvas>
+
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let lanes = 3;
-let player, cars, speed, score, gameOver;
-let spawnTimer = 0;
+
+let player, cars, coinsList, speed, score, gameOver, coins;
+let roadOffset = 0;
+let lastSafeLane = 1;
+
+// 🔊 Sounds
+const crashSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2723/2723-preview.mp3");
+const coinSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
 
 // init
 function init(){
     player = { lane:1 };
     cars = [];
+    coinsList = [];
     speed = 5;
     score = 0;
+    coins = 0;
     gameOver = false;
-    spawnTimer = 0;
+    roadOffset = 0;
 }
-init();
 
-// controls
+// controls (keyboard)
 document.addEventListener("keydown", e=>{
     if(gameOver) return;
-
     if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
     if(e.key==="ArrowRight" && player.lane<lanes-1) player.lane++;
 });
 
-// ✅ NEW SAFE SPAWN SYSTEM
+// 📱 Mobile touch
+let touchStartX = 0;
+canvas.addEventListener("touchstart", e=>{
+    touchStartX = e.touches[0].clientX;
+});
+
+canvas.addEventListener("touchend", e=>{
+    let dx = e.changedTouches[0].clientX - touchStartX;
+    if(Math.abs(dx) > 30){
+        if(dx < 0 && player.lane > 0) player.lane--;
+        if(dx > 0 && player.lane < lanes-1) player.lane++;
+    }
+});
+
+// 🚗 Spawn cars
 function spawnRow(){
+    let highest = cars.length ? Math.min(...cars.map(c => c.y)) : 9999;
+    if(highest > -300) return;
 
-    let safeLane = Math.floor(Math.random()*lanes);
-    let laneWidth = canvas.width / lanes;
+    let safeLane;
+    do {
+        safeLane = Math.floor(Math.random()*lanes);
+    } while (safeLane === lastSafeLane && Math.random() < 0.7);
 
-    // ensure spacing from last row
-    let highestCarY = Math.min(...cars.map(c=>c.y), 9999);
-
-    // if too many cars or too close → don't spawn
-    if(highestCarY > -250) return;
+    lastSafeLane = safeLane;
 
     for(let i=0;i<lanes;i++){
         if(i !== safeLane){
-            cars.push({
-                lane: i,
-                y: -100
-            });
+            cars.push({ lane:i, y:-100 });
         }
     }
+
+    // 💰 spawn coin in safe lane
+    coinsList.push({ lane: safeLane, y:-120 });
 }
 
-// draw road
+// 🛣️ Road (endless effect)
 function drawRoad(){
     ctx.fillStyle="#020617";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
+    let laneWidth = canvas.width/lanes;
+
     ctx.strokeStyle="#334155";
-    ctx.lineWidth=3;
+    ctx.lineWidth=2;
 
     for(let i=1;i<lanes;i++){
-        let x = i*canvas.width/lanes;
-        ctx.beginPath();
-        ctx.moveTo(x,0);
-        ctx.lineTo(x,canvas.height);
-        ctx.stroke();
+        let x = i*laneWidth;
+        for(let y = -40 + roadOffset; y < canvas.height; y += 80){
+            ctx.beginPath();
+            ctx.moveTo(x,y);
+            ctx.lineTo(x,y+40);
+            ctx.stroke();
+        }
     }
 }
 
-// draw car
+// 🚘 Car
 function drawCar(x,y,color){
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = color;
-
+    ctx.shadowBlur=15;
+    ctx.shadowColor=color;
     ctx.fillStyle=color;
     ctx.fillRect(x-20,y-40,40,80);
+    ctx.shadowBlur=0;
+}
 
-    ctx.shadowBlur = 0;
+// 💰 Coin
+function drawCoin(x,y){
+    ctx.fillStyle="gold";
+    ctx.beginPath();
+    ctx.arc(x,y,10,0,Math.PI*2);
+    ctx.fill();
 }
 
 // update
@@ -81,38 +132,52 @@ function update(){
     if(gameOver) return;
 
     score++;
-    speed += 0.002;
+    speed += 0.0008;
+    speed = Math.min(speed, 12);
 
-    spawnTimer++;
+    roadOffset += speed;
+    if(roadOffset > 80) roadOffset = 0;
 
-    let laneWidth = canvas.width / lanes;
+    let laneWidth = canvas.width/lanes;
     let px = player.lane * laneWidth + laneWidth/2;
     let py = canvas.height - 100;
 
-    // move cars
+    // cars
     cars.forEach(car=>{
         car.y += speed;
-
         let cx = car.lane * laneWidth + laneWidth/2;
 
-        if(Math.abs(cx-px)<30 && Math.abs(car.y-py)<60){
+        if(Math.abs(cx - px) < 25 && Math.abs(car.y - py) < 50){
+            crashSound.play();
             gameOver = true;
             setTimeout(()=>{
-                alert("Game Over! Score: " + score);
+                if(confirm("Game Over! Score: "+score+"\nCoins: "+coins+"\nRestart?")){
+                    init();
+                }
             },100);
         }
     });
 
-    // cleanup
+    // coins
+    coinsList.forEach(c=>{
+        c.y += speed;
+        let cx = c.lane * laneWidth + laneWidth/2;
+
+        if(Math.abs(cx - px) < 25 && Math.abs(c.y - py) < 50){
+            coinSound.play();
+            coins++;
+            c.collected = true;
+        }
+    });
+
+    coinsList = coinsList.filter(c => !c.collected && c.y < canvas.height);
+
     cars = cars.filter(c => c.y < canvas.height + 100);
 
-    // ✅ CONTROLLED SPAWNING (fix stacking)
-    if(spawnTimer > 40){
-        spawnRow();
-        spawnTimer = 0;
-    }
+    spawnRow();
 
     document.getElementById("score").innerText = "Score: " + score;
+    document.getElementById("coins").innerText = "Coins: " + coins;
 }
 
 // draw
@@ -129,6 +194,11 @@ function draw(){
         let cx = car.lane * laneWidth + laneWidth/2;
         drawCar(cx, car.y, "#ef4444");
     });
+
+    coinsList.forEach(c=>{
+        let cx = c.lane * laneWidth + laneWidth/2;
+        drawCoin(cx, c.y);
+    });
 }
 
 // loop
@@ -138,15 +208,9 @@ function loop(){
     requestAnimationFrame(loop);
 }
 
-// restart
-function restartGame(){
-    init();
-}
-
-// home
-function goHome(){
-    window.location.href="index.html";
-}
-
+init();
 loop();
 </script>
+
+</body>
+</html>
