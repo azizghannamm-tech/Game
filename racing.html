@@ -3,10 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <title>Car Endless Runner</title>
+
 <style>
-    body { margin:0; background:#020617; color:white; text-align:center; font-family:sans-serif; }
-    canvas { background:#020617; display:block; margin:auto; }
-    #ui { position:absolute; top:10px; left:10px; }
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+    background:#020617;
+    color:white;
+    font-family:sans-serif;
+    overflow:hidden;
+}
+
+canvas{
+    display:block;
+    margin:auto;
+}
+
+#ui{
+    position:absolute;
+    top:15px;
+    left:15px;
+    font-size:18px;
+}
+
 </style>
 </head>
 
@@ -28,14 +47,19 @@ let lanes = 3;
 let player, cars, coinsList, speed, score, gameOver, coins;
 let roadOffset = 0;
 let lastSafeLane = 1;
+let shake = 0;
 
-// 🔊 Sounds
+// sounds
 const crashSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2723/2723-preview.mp3");
 const coinSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
 
 // init
 function init(){
-    player = { lane:1 };
+    player = {
+        lane:1,
+        x:0,
+        targetX:0
+    };
     cars = [];
     coinsList = [];
     speed = 5;
@@ -43,67 +67,59 @@ function init(){
     coins = 0;
     gameOver = false;
     roadOffset = 0;
+    shake = 0;
 }
 
-// controls (keyboard)
+// controls
 document.addEventListener("keydown", e=>{
     if(gameOver) return;
+
     if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
     if(e.key==="ArrowRight" && player.lane<lanes-1) player.lane++;
 });
 
-// 📱 Mobile touch
-let touchStartX = 0;
+// swipe
+let touchStart = 0;
 canvas.addEventListener("touchstart", e=>{
-    touchStartX = e.touches[0].clientX;
+    touchStart = e.touches[0].clientX;
 });
-
 canvas.addEventListener("touchend", e=>{
-    let dx = e.changedTouches[0].clientX - touchStartX;
-    if(Math.abs(dx) > 30){
-        if(dx < 0 && player.lane > 0) player.lane--;
-        if(dx > 0 && player.lane < lanes-1) player.lane++;
+    let diff = e.changedTouches[0].clientX - touchStart;
+    if(Math.abs(diff)>40){
+        if(diff<0 && player.lane>0) player.lane--;
+        if(diff>0 && player.lane<lanes-1) player.lane++;
     }
 });
 
-// 🚗 FIXED spawn system
+// spawn
 function spawnRow(){
 
-    // ✅ FIRST SPAWN (critical fix)
     if(cars.length === 0){
-        for(let i = 0; i < lanes; i++){
-            if(i !== 1){ // safe center at start
-                cars.push({ lane: i, y: -100 });
-            }
+        for(let i=0;i<lanes;i++){
+            if(i!==1) cars.push({lane:i,y:-100});
         }
-        coinsList.push({ lane: 1, y: -120 });
+        coinsList.push({lane:1,y:-120,angle:0});
         return;
     }
 
-    let highest = Math.min(...cars.map(c => c.y));
-
-    let minGap = 260; // slightly tighter = more action
-
-    if(highest > -minGap) return;
+    let highest = Math.min(...cars.map(c=>c.y));
+    if(highest > -260) return;
 
     let safeLane;
-    do {
+    do{
         safeLane = Math.floor(Math.random()*lanes);
-    } while (safeLane === lastSafeLane && Math.random() < 0.7);
+    }while(safeLane===lastSafeLane && Math.random()<0.7);
 
     lastSafeLane = safeLane;
 
     for(let i=0;i<lanes;i++){
-        if(i !== safeLane){
-            cars.push({ lane:i, y:-100 });
-        }
+        if(i!==safeLane) cars.push({lane:i,y:-100});
     }
 
-    // 💰 spawn coin in safe lane
-    coinsList.push({ lane: safeLane, y:-120 });
+    coinsList.push({lane:safeLane,y:-120,angle:0});
 }
 
-// 🛣️ Road
+// road
 function drawRoad(){
     ctx.fillStyle="#020617";
     ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -111,11 +127,12 @@ function drawRoad(){
     let laneWidth = canvas.width/lanes;
 
     ctx.strokeStyle="#334155";
-    ctx.lineWidth=2;
+    ctx.lineWidth=3;
 
     for(let i=1;i<lanes;i++){
-        let x = i*laneWidth;
-        for(let y = -40 + roadOffset; y < canvas.height; y += 80){
+        let x=i*laneWidth;
+
+        for(let y=-40+roadOffset;y<canvas.height;y+=80){
             ctx.beginPath();
             ctx.moveTo(x,y);
             ctx.lineTo(x,y+40);
@@ -124,21 +141,39 @@ function drawRoad(){
     }
 }
 
-// 🚘 Car
-function drawCar(x,y,color){
-    ctx.shadowBlur=15;
+// fancy car
+function drawCar(x,y,color,tilt=0){
+
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(tilt);
+
+    let grad = ctx.createLinearGradient(-20,-40,20,40);
+    grad.addColorStop(0,"white");
+    grad.addColorStop(1,color);
+
+    ctx.shadowBlur=20;
     ctx.shadowColor=color;
-    ctx.fillStyle=color;
-    ctx.fillRect(x-20,y-40,40,80);
+
+    ctx.fillStyle=grad;
+    ctx.fillRect(-20,-40,40,80);
+
+    ctx.restore();
     ctx.shadowBlur=0;
 }
 
-// 💰 Coin
-function drawCoin(x,y){
+// coin animation
+function drawCoin(x,y,angle){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(angle);
+
     ctx.fillStyle="gold";
     ctx.beginPath();
-    ctx.arc(x,y,10,0,Math.PI*2);
+    ctx.arc(0,0,10,0,Math.PI*2);
     ctx.fill();
+
+    ctx.restore();
 }
 
 // update
@@ -147,27 +182,34 @@ function update(){
     if(gameOver) return;
 
     score++;
-
     speed += 0.0008;
-    speed = Math.min(speed, 12);
+    speed = Math.min(speed,12);
 
     roadOffset += speed;
-    if(roadOffset > 80) roadOffset = 0;
+    if(roadOffset>80) roadOffset=0;
 
     let laneWidth = canvas.width/lanes;
-    let px = player.lane * laneWidth + laneWidth/2;
+
+    // smooth movement
+    player.targetX = player.lane * laneWidth + laneWidth/2;
+    player.x += (player.targetX - player.x) * 0.2;
+
+    let px = player.x;
     let py = canvas.height - 100;
 
     // cars
     cars.forEach(car=>{
         car.y += speed;
+
         let cx = car.lane * laneWidth + laneWidth/2;
 
-        if(Math.abs(cx - px) < 25 && Math.abs(car.y - py) < 50){
+        if(Math.abs(cx-px)<25 && Math.abs(car.y-py)<50){
             crashSound.play();
             gameOver = true;
+            shake = 10;
+
             setTimeout(()=>{
-                if(confirm("Game Over!\nScore: "+score+"\nCoins: "+coins+"\nRestart?")){
+                if(confirm("Game Over!\nScore: "+score)){
                     init();
                 }
             },100);
@@ -177,33 +219,43 @@ function update(){
     // coins
     coinsList.forEach(c=>{
         c.y += speed;
+        c.angle += 0.1;
+
         let cx = c.lane * laneWidth + laneWidth/2;
 
-        if(Math.abs(cx - px) < 25 && Math.abs(c.y - py) < 50){
+        if(Math.abs(cx-px)<25 && Math.abs(c.y-py)<50){
             coinSound.play();
             coins++;
             c.collected = true;
         }
     });
 
-    coinsList = coinsList.filter(c => !c.collected && c.y < canvas.height);
-    cars = cars.filter(c => c.y < canvas.height + 100);
+    cars = cars.filter(c=>c.y < canvas.height+100);
+    coinsList = coinsList.filter(c=>!c.collected && c.y<canvas.height);
 
     spawnRow();
 
-    document.getElementById("score").innerText = "Score: " + score;
-    document.getElementById("coins").innerText = "Coins: " + coins;
+    document.getElementById("score").innerText="Score: "+score;
+    document.getElementById("coins").innerText="Coins: "+coins;
+
+    if(shake>0) shake--;
 }
 
 // draw
 function draw(){
 
+    ctx.save();
+
+    if(shake>0){
+        ctx.translate(Math.random()*shake - shake/2, Math.random()*shake - shake/2);
+    }
+
     drawRoad();
 
-    let laneWidth = canvas.width / lanes;
+    let laneWidth = canvas.width/lanes;
 
-    let px = player.lane * laneWidth + laneWidth/2;
-    drawCar(px, canvas.height-100, "#22c55e");
+    let tilt = (player.targetX - player.x) * 0.002;
+    drawCar(player.x, canvas.height-100, "#22c55e", tilt);
 
     cars.forEach(car=>{
         let cx = car.lane * laneWidth + laneWidth/2;
@@ -212,8 +264,10 @@ function draw(){
 
     coinsList.forEach(c=>{
         let cx = c.lane * laneWidth + laneWidth/2;
-        drawCoin(cx, c.y);
+        drawCoin(cx, c.y, c.angle);
     });
+
+    ctx.restore();
 }
 
 // loop
